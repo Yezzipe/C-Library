@@ -1,0 +1,1 @@
+int hashCode(void* value, unsigned long long int size);
