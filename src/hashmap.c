@@ -27,7 +27,6 @@ typedef struct hashmap_tree_node {
 
 typedef struct hashmap_tree {
     hashmap_tree_node_t* root;
-    int size;
 } hashmap_tree_t;
 
 void leftRotate(hashmap_tree_t* tree, hashmap_tree_node_t* root)
@@ -103,7 +102,6 @@ void insertFix(hashmap_tree_t* tree, hashmap_tree_node_t* node) {
             insertFix(tree, grandparent);
         }
     }
-    
 }
 
 void insert(hashmap_tree_t* tree, void* key, void* value, unsigned long long int key_size) {
@@ -133,7 +131,6 @@ void insert(hashmap_tree_t* tree, void* key, void* value, unsigned long long int
     node->left = NULL;
     node->right = NULL;
     node->black = false;
-    tree->size++;
     insertFix(tree, node);
 }
 
@@ -258,7 +255,6 @@ void delete(hashmap_tree_t* tree, hashmap_tree_node_t* a) {
     if (og_color) {
         if (c != NULL) deleteFix(tree, c);
     }
-    tree->size--;
     free(a);
 }
 
@@ -499,13 +495,12 @@ void hashMapFix(hashmap_t* hashmap, hashmap_bucket_t* bucket) {
             }
         }
         free(old_buckets);
-    } else if (hashmap->bucket_nb >= MIN_TREEIFY_CAPACITY && bucket->size >= TREEIFY_THRESHOLD) {
+    } else if (hashmap->bucket_nb >= MIN_TREEIFY_CAPACITY && bucket->size >= TREEIFY_THRESHOLD && !bucket->tree) {
         hashmap_tree_t* tree = malloc(sizeof(hashmap_tree_t));
         tree->root = NULL;
-        tree->size = 0;
         hashmap_list_node_t* node = bucket->list;
         while (node != NULL) {
-            insert(tree, node->key, node->value, hashmap->key_size);   
+            insert(tree, node->key, node->value, hashmap->key_size);  
             hashmap_list_node_t* old = node;
             node = node->next;
             free(old);
@@ -533,6 +528,7 @@ void hashMapRemove(hashmap_t* hashmap, void* key) {
         hashmap_tree_node_t* node = search(tree, key, hashmap->key_size);
         if (node != NULL) {
             delete(tree, node);
+            bucket->size--;
             hashmap->size--;
         }
     } else {
@@ -576,16 +572,21 @@ void hashMapFree(hashmap_t** hashmap) {
                 hashmap_list_node_t* old = node;
                 node = node->next;
                 free(old);
+                (*hashmap)->mem -= sizeof(hashmap_list_node_t);
             }
         } else {
             hashmap_tree_t* tree = bucket->list;
             hashmap_list_node_t* node = treeToArray(tree);
+            (*hashmap)->mem += sizeof(hashmap_list_node_t)*bucket->size;
+            (*hashmap)->mem -= sizeof(hashmap_tree_node_t)*bucket->size;
             while (node != NULL) {
                 hashmap_list_node_t* old = node;
                 node = node->next;
                 free(old);
+                (*hashmap)->mem -= sizeof(hashmap_list_node_t);
             }  
             free(tree);
+            (*hashmap)->mem -= sizeof(hashmap_tree_t);
         }
     }
     free((*hashmap)->buckets);

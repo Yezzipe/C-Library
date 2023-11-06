@@ -4,8 +4,8 @@
 
 typedef struct hashmap_bucket {
     bool tree;
+    short size;
     void* list;
-    int size;
 } hashmap_bucket_t;
 
 typedef struct hashmap {
